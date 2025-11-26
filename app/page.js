@@ -1,129 +1,97 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export default function Home() {
   const [handle, setHandle] = useState("");
-  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState(0);
+  const [result, setResult] = useState(null);
 
-  const steps = [
-    "Compiling zkVM...",
-    "Generating proof...",
-    "Compressing execution trace...",
-    "Verifying recursive proof...",
-    "Finalizing output hash...",
-  ];
+  // 🔒 deterministic hash → hasil stabil per handle
+  function hashString(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = (h << 5) - h + str.charCodeAt(i);
+      h |= 0; // force 32bit
+    }
+    return Math.abs(h);
+  }
 
-  // animasi step berubah otomatis
-  useEffect(() => {
-    if (!loading) return;
-    setLoadingStep(0);
-
-    const interval = setInterval(() => {
-      setLoadingStep((prev) =>
-        prev + 1 < steps.length ? prev + 1 : prev
-      );
-    }, 700);
-
-    return () => clearInterval(interval);
-  }, [loading]);
-
-  async function calculate() {
-    setResult(null);
+  const checkCopium = async () => {
     setLoading(true);
+    setResult(null);
 
-    const res = await fetch("/api/copium", {
-      method: "POST",
-      body: JSON.stringify({ handleRaw: handle }),
+    // Fetch avatar
+    const cleanHandle = handle.replace("@", "");
+    const pfpRes = await fetch(`/api/pfp/${cleanHandle}`);
+    const { avatar } = await pfpRes.json();
+
+    // ⭐ Stable score
+    const seed = hashString(cleanHandle);
+    const random = (n, offset) => (seed + offset) % n;
+
+    const copium = random(100, 1);
+    const ogProb = random(80, 2);
+    const zkEnjoyer = random(90, 3);
+    const rngBless = random(100, 4);
+
+    setResult({
+      avatar,
+      copium,
+      ogProb,
+      zkEnjoyer,
+      rngBless,
     });
 
-    const data = await res.json();
-
-    // delay biar animasi keliatan
-    setTimeout(() => {
-      setResult(data);
-      setLoading(false);
-    }, 1400);
-  }
+    setLoading(false);
+  };
 
   return (
     <div
-      className="min-h-screen w-full flex flex-col items-center justify-center p-6 relative text-white"
-      style={{
-        backgroundImage: "url('/midenn.jfif')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
+      className="min-h-screen flex flex-col items-center justify-center bg-cover bg-center p-6"
+      style={{ backgroundImage: `url('/midenn.jfif')` }}
     >
-      {/* overlay gelap */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-
-      <div className="relative z-10 flex flex-col items-center">
-        <h1 className="text-4xl font-bold mb-6 text-orange-400 drop-shadow-lg">
+      <div className="bg-black/60 text-white p-6 rounded-2xl w-full max-w-md">
+        <h1 className="text-2xl font-bold text-orange-500 text-center mb-4">
           Miden Copium Calculator
         </h1>
 
         <input
-          className="text-black p-3 rounded-lg w-72 shadow-lg outline-none"
-          placeholder="@handle"
           value={handle}
           onChange={(e) => setHandle(e.target.value)}
+          placeholder="@yourhandle"
+          className="w-full p-3 rounded-xl text-black mb-4"
         />
 
         <button
-          onClick={calculate}
-          className="mt-4 px-6 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 transition shadow-orange-900/40 shadow-lg"
+          onClick={checkCopium}
+          className="w-full p-3 bg-orange-500 rounded-xl font-bold"
         >
-          Calculate Copium
+          Check Copium
         </button>
 
-        {/* 🔥 LOADING ANIMASI ZK-PROOF */}
         {loading && (
-          <div
-            className="
-              mt-8 p-5 rounded-xl w-80 
-              bg-black/40 border border-orange-500/30 backdrop-blur-lg 
-              shadow-[0_0_15px_rgba(255,140,0,0.4)]
-              text-sm font-mono tracking-wide
-            "
-          >
-            <p className="text-orange-300 mb-3">zk-Proof Engine:</p>
-
-            <p className="text-orange-200 animate-pulse">
-              {steps[loadingStep]}
-            </p>
-
-            {/* dots animasi */}
-            <div className="flex gap-1 mt-3">
-              <span className="w-2 h-2 bg-orange-400 rounded-full animate-bounce"></span>
-              <span
-                className="w-2 h-2 bg-orange-400 rounded-full animate-bounce"
-                style={{ animationDelay: "0.15s" }}
-              ></span>
-              <span
-                className="w-2 h-2 bg-orange-400 rounded-full animate-bounce"
-                style={{ animationDelay: "0.3s" }}
-              ></span>
+          <div className="mt-6 text-center">
+            <div className="animate-pulse text-orange-400 text-lg">
+              Verifying zk-proof…
             </div>
+            <div className="mt-2 animate-spin text-3xl">◍</div>
           </div>
         )}
 
         {result && (
-          <div
-            className="
-              mt-8 p-6 rounded-2xl w-80 space-y-2 
-              bg-white/10 backdrop-blur-xl shadow-xl border border-white/10
-            "
-          >
-            <p><b>Handle:</b> @{result.handle}</p>
-            <p><b>Copium Level:</b> {result.copium}%</p>
-            <p><b>OG Probability:</b> {result.ogProb}%</p>
-            <p><b>zkVM Enjoyer Rating:</b> {result.enjoyer}%</p>
-            <p><b>gMiden Frequency Score:</b> {result.gMidenFreq}</p>
-            <p className="pt-2 italic text-orange-300">
-              {result.rngBlessing}
-            </p>
+          <div className="mt-6 text-center">
+            <img
+              src={result.avatar}
+              alt="PFP"
+              className="w-20 h-20 rounded-full mx-auto mb-4 border-4 border-orange-500"
+            />
+
+            <div className="space-y-2 text-lg">
+              <p>🔥 Copium Level: <b>{result.copium}%</b></p>
+              <p>🟧 OG Probability: <b>{result.ogProb}%</b></p>
+              <p>⚙️ zkVM Enjoyer Rating: <b>{result.zkEnjoyer}%</b></p>
+              <p>🎲 RNG Blessing Today: <b>{result.rngBless}%</b></p>
+            </div>
           </div>
         )}
       </div>
